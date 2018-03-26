@@ -54,6 +54,12 @@ class Note():
     def fname(self):
         return f'{self.midi}.wav'
 
+    def __repr__(self):
+        return f'[{self.midi}] {self.octave_value}'
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class Button():
     '''
@@ -77,6 +83,14 @@ class Button():
             return f'/path/to/sound/file/{self.closed_note.fname()}'
         return f'/path/to/sound/file/{self.open_note.fname()}'
 
+    def __repr__(self):
+        return (
+            f'[{self.key_number}] {self.open_note.octave_value}'
+            f'/{self.closed_note.octave_value}')
+
+    def __str__(self):
+        return self.__repr__()
+
 
 def get_current_buttons_pushed():
     '''
@@ -88,10 +102,10 @@ def get_current_buttons_pushed():
     '''
     try:
         with open(_VIRTUAL_BUTTONS_FILE, 'r') as f:
-            button_rows = f.readlines()
+            button_keys = f.readlines()[0].strip().split(',')
     except FileNotFoundError as e:
-        button_rows = []
-    button_keys = [int(k) for k in button_rows[0].split(',')]
+        button_keys = []
+    button_keys = [int(k.strip()) for k in button_keys]
     pushed_buttons = [_buttons[k] for k in button_keys]
     return set(pushed_buttons)
 
@@ -116,7 +130,8 @@ def _init_buttons():
         _init_virtual_buttons()
     elif _KEY_MODE == _IC2:
         raise NotImplementedError('IC2 handling is not yet implemented')
-    raise NotImplementedError(f'{_KEY_MODE} is unrecognized')
+    else:
+        raise NotImplementedError(f'{_KEY_MODE} is unrecognized')
 
 
 def _init_virtual_buttons():

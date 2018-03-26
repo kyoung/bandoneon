@@ -2,3 +2,4 @@ venv
 .ropeproject
 .buttons
 .bellows
+__pycache__
