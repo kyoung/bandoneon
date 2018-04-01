@@ -49,7 +49,7 @@ class Note():
 
         self.octave_value_yamaha = f'{note.upper()}{octave - 1}'
         self.octave_value = f'{note.upper()}{octave}'
-        self.midi = 24 + _note_map[note.upper()] + 12 * octave
+        self.midi = 12 + _note_map[note.upper()] + 12 * octave
 
     def fname(self):
         return f'{self.midi}.wav'
@@ -73,20 +73,20 @@ class Button():
     We parse and store them out to Octave Numbering and MIDI notes.
     '''
 
-    def __init__(self, key_number, open_value, closed_value):
+    def __init__(self, key_number, draw_value, push_value):
         self.key_number = key_number
-        self.open_note = Note(open_value)
-        self.closed_note = Note(closed_value)
+        self.draw_note = Note(draw_value)
+        self.push_note = Note(push_value)
 
     def get_file(self, bellows_value):
         if bellows_value >= 0:
-            return f'/path/to/sound/file/{self.closed_note.fname()}'
-        return f'/path/to/sound/file/{self.open_note.fname()}'
+            return f'/path/to/sound/file/{self.push_note.fname()}'
+        return f'/path/to/sound/file/{self.draw_note.fname()}'
 
     def __repr__(self):
         return (
-            f'[{self.key_number}] {self.open_note.octave_value}'
-            f'/{self.closed_note.octave_value}')
+            f'[{self.key_number}] {self.draw_note.octave_value}'
+            f'/{self.push_note.octave_value}')
 
     def __str__(self):
         return self.__repr__()
@@ -105,7 +105,7 @@ def get_current_buttons_pushed():
             button_keys = f.readlines()[0].strip().split(',')
     except FileNotFoundError as e:
         button_keys = []
-    button_keys = [int(k.strip()) for k in button_keys]
+    button_keys = [int(k.strip()) for k in button_keys if k != '']
     pushed_buttons = [_buttons[k] for k in button_keys]
     return set(pushed_buttons)
 
@@ -231,8 +231,8 @@ def _init_virtual_buttons():
         (70, 'f```', 'f```'),
     ]
     global _buttons
-    for bttn_key, opened, closed in button_maps:
-        _buttons[bttn_key] = Button(bttn_key, opened, closed)
+    for bttn_key, draw, push in button_maps:
+        _buttons[bttn_key] = Button(bttn_key, draw, push)
 
 
 _init_buttons()

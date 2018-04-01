@@ -25,7 +25,8 @@ def get_current_bellows_value():
     '''
     try:
         with open(_VIRTUAL_BELLOWS_FILE, 'r') as f:
-            bellows_value = int(f.readlines()[0].strip())
+            value = f.readlines()[0].strip()
+            bellows_value = int(value) if value else 0
     except FileNotFoundError as e:
         bellows_value = 0
     return bellows_value
