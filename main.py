@@ -2,7 +2,7 @@
 Bandoneon main application.
 '''
 from bandoneon import bellows, button
-from bandoneon.sound import SoundStub as Sound
+from bandoneon.sound import Sound  # Stub as Sound
 
 
 def start_loop():

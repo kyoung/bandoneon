@@ -2,7 +2,9 @@
 Button related implementations.
 '''
 import os
+import random
 import re
+
 
 _RE_HELMHOLTZ = re.compile('^([a-gA-G]#?)(`*)$')
 _note_map = {
@@ -62,7 +64,8 @@ class Note():
         self.midi = 24 + _note_map[note.upper()] + 12 * octave
 
     def fname(self):
-        return f'{self.midi}.wav'
+        file_ = random.choice(_file_map[self.octave_value])
+        return os.path.join(_SOUND_DIR, file_)
 
     def __repr__(self):
         return f'[{self.midi}] {self.octave_value}'
@@ -90,8 +93,8 @@ class Button():
 
     def get_file(self, bellows_value):
         if bellows_value >= 0:
-            return f'/path/to/sound/file/{self.push_note.fname()}'
-        return f'/path/to/sound/file/{self.draw_note.fname()}'
+            return self.push_note.fname()
+        return self.draw_note.fname()
 
     def __repr__(self):
         return (
