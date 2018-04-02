@@ -21,7 +21,17 @@ _KEY_MODE = os.getenv('BANDONEON_BUTTONS', _VIRTUAL)
 
 _VIRTUAL_BUTTONS_FILE = '.buttons'
 
+_SOUND_DIR = os.getenv('SOUND_DIRECTORY', 'sounds/part1')
+
 _buttons = {}
+
+
+# Prescan the sound dir to make a map of ISO note values to sound files
+_file_list = os.listdir(_SOUND_DIR)
+_file_map = {
+    note: [f for f in _file_list if note in f]
+    for note in [f'{n}{o}' for n in _note_map.keys() for o in range(6)]
+}
 
 
 class InvalidNoteError(Exception):
