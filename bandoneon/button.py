@@ -49,7 +49,7 @@ class Note():
 
         self.octave_value_yamaha = f'{note.upper()}{octave - 1}'
         self.octave_value = f'{note.upper()}{octave}'
-        self.midi = 12 + _note_map[note.upper()] + 12 * octave
+        self.midi = 24 + _note_map[note.upper()] + 12 * octave
 
     def fname(self):
         return f'{self.midi}.wav'
@@ -102,10 +102,15 @@ def get_current_buttons_pushed():
     '''
     try:
         with open(_VIRTUAL_BUTTONS_FILE, 'r') as f:
-            button_keys = f.readlines()[0].strip().split(',')
+            raw_value = f.read()
     except FileNotFoundError as e:
-        button_keys = []
-    button_keys = [int(k.strip()) for k in button_keys if k != '']
+        raw_value = ''
+    raw_value = raw_value.replace('\x00', '')
+    button_keys = raw_value.strip().split(',')
+    try:
+        button_keys = [int(k.strip()) for k in button_keys if k != '']
+    except ValueError as e:
+        import pdb; pdb.set_trace()
     pushed_buttons = [_buttons[k] for k in button_keys]
     return set(pushed_buttons)
 

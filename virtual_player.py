@@ -4,6 +4,8 @@ by populating them with keyed notes and pressure values.
 
 Use alongside the main bandoneon program in virtual mode.
 '''
+from collections import defaultdict
+import logging
 import time
 
 import mido
@@ -14,6 +16,7 @@ from bandoneon import button, bellows
 BELLOWS_FILE = bellows._VIRTUAL_BELLOWS_FILE
 BUTTON_FILE = button._VIRTUAL_BUTTONS_FILE
 CUMPARSITA = 'cumparsita.mid'
+BANDONEON_CHANNELS = set([3, 5, 6])  # the only bandoneon channels in the file
 
 # Build up a midi map buttons
 MIDI_TO_KEY_DRAW = {
@@ -26,27 +29,77 @@ MIDI_TO_KEY_PUSH = {
 }
 
 
+class DirectionEnum():
+    DRAW = 'draw'
+    PUSH = 'push'
+
+
+class InvalidNoteCombination(Exception):
+    pass
+
+
+def infer_direction(notes, last_direction=DirectionEnum.DRAW):
+    '''
+    notes - set of midi notes
+
+    Given a set of notes, determine if the concertina is being drawn or pushed,
+    also alternate if possible.
+    '''
+    draw_possible = False
+    if all([n in MIDI_TO_KEY_DRAW for n in notes]):
+        draw_possible = True
+
+    push_possible = False
+    if all([n in MIDI_TO_KEY_PUSH for n in notes]):
+        push_possible = True
+
+    if draw_possible and push_possible:
+        return (DirectionEnum.DRAW
+                if last_direction != DirectionEnum.DRAW
+                else DirectionEnum.PUSH)
+
+    if draw_possible:
+        return DirectionEnum.DRAW
+    elif push_possible:
+        return DirectionEnum.PUSH
+
+    raise InvalidNoteCombination(', '.join([str(n) for n in notes]))
+
+
 def write_notes(notes, direction):
     '''
     notes - set of midi notes
-    direction - 'draw' or 'push'
+    direction - one of the DirectionEnum values
 
     Given a list of notes, calculate possible keys.
     '''
     map_ = {
-        'draw': MIDI_TO_KEY_DRAW,
-        'push': MIDI_TO_KEY_PUSH
+        DirectionEnum.DRAW: MIDI_TO_KEY_DRAW,
+        DirectionEnum.PUSH: MIDI_TO_KEY_PUSH
     }[direction]
-    keys = [map_[n] for n in notes]
-    key_string = ','.join((str(k) for k in keys))
+
+    # sometimes we get impossible notes?
+    keys = [map_[n] for n in notes if n in map_]
+
+    # report on bad notes:
+    bad_notes = [n for n in notes if n not in map_]
+    if bad_notes:
+        logging.warning(f'Invalid notes: {bad_notes}')
+
+    if keys:
+        key_string = ','.join((str(k) for k in keys))
+    else:
+        key_string  = ''
+
     with open(BUTTON_FILE, 'w') as f:
+        f.seek(0)
         f.write(key_string)
 
 
-def write_bellows(velocities, direction):
+def write_bellows(velocities, direction=DirectionEnum.DRAW):
     '''
     velocities - list of velocity values
-    direction - 'draw' or 'push'
+    direction - one of the DirectionEnum values
 
     The velocity is consistent on a bandoneon, (or any concertina or accordian
     for that matter); we much average it if presented with a list of varying
@@ -58,21 +111,35 @@ def write_bellows(velocities, direction):
         avg_velocity = int(sum(velocities) / len(velocities))
     except ZeroDivisionError:
         avg_velocity = 0
+    if direction == DirectionEnum.DRAW:
+        avg_velocity *= -1
     with open(BELLOWS_FILE, 'w') as f:
         f.write(str(avg_velocity))
 
 
 def check_song():
-    max_midi = None
-    min_midi = None
+
+    channel_ranges = defaultdict(lambda: {'max_midi': None, 'min_midi': None})
+
     for message in mido.MidiFile(CUMPARSITA):
+        if message.is_meta:
+            if message.type == 'channel_prefix':
+                print(f'Channel Prefix: {message.channel}')
+            if message.type == 'track_name':
+                print(f'\t{message.name}')
         if message.type not in ['note_on', 'note_off']:
             continue
-        if not max_midi or message.note > max_midi:
-            max_midi = message.note
-        if not min_midi or message.note < min_midi:
-            min_midi = message.note
-    print(f'MIDI range: {min_midi} - {max_midi}')
+        ch = message.channel
+        max_ = channel_ranges[ch]['max_midi']
+        if not max_ or message.note > max_:
+            channel_ranges[ch]['max_midi'] = message.note
+        min_ = channel_ranges[ch]['min_midi']
+        if not min_ or message.note < min_:
+            channel_ranges[ch]['min_midi'] = message.note
+
+    print('MIDI ranges:')
+    for ch, ranges in channel_ranges.items():
+        print(f"{ch}: min {ranges['min_midi']}, max {ranges['max_midi']}")
 
 
 def main():
@@ -80,12 +147,16 @@ def main():
     '''
     currently_playing_notes = set()
     current_velocities = [0]
+    direction = DirectionEnum.DRAW
     for message in mido.MidiFile(CUMPARSITA):
         # We're not really interested in anything else just yet
         if message.type not in ['note_on', 'note_off']:
             continue
 
-        print((
+        if message.channel not in BANDONEON_CHANNELS:
+            continue
+
+        logging.info((
             f'{message.type}: {message.note} ({message.velocity}) '
             f'-- {message.time}'
         ))
@@ -101,20 +172,24 @@ def main():
                 try:
                     currently_playing_notes.remove(message.note)
                 except KeyError:
-                    print(f'note wasn\'t playing: {message.note}')
+                    logging.info(f'note wasn\'t playing: {message.note}')
 
         else:
-            write_notes(currently_playing_notes, 'draw')
-            write_bellows(current_velocities, 'draw')
+            direction = infer_direction(currently_playing_notes, direction)
+            write_notes(currently_playing_notes, direction)
+            write_bellows(current_velocities, direction)
             time.sleep(message.time)
             if message.type == 'note_on':
-                current_velocities = [message.velocity,]
+                current_velocities = [message.velocity, ]
                 currently_playing_notes.add(message.note)
             if message.type == 'note_off':
                 try:
                     currently_playing_notes.remove(message.note)
                 except KeyError:
-                    print(f'note wasn\'t playing: {message.note}')
+                    logging.info(f'note wasn\'t playing: {message.note}')
+
+    write_notes(currently_playing_notes, direction)
+    write_bellows([])
 
 
 if __name__ == '__main__':

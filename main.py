@@ -38,10 +38,10 @@ def start_loop():
             new_active_buttons = {}
             for bttn, sound in active_buttons.items():
                 sound.stop()
-                new_sound = Sound(button.get_file(current_bellows_value))
+                new_sound = Sound(bttn.get_file(current_bellows_value))
                 new_sound.set_volume(current_volume)
                 new_sound.play(loops=-1)  # ignore the returned channel
-                new_active_buttons[button] = new_sound
+                new_active_buttons[bttn] = new_sound
             active_buttons = new_active_buttons
         elif current_bellows_value != bellows_value:
             for sound in active_buttons.values():
