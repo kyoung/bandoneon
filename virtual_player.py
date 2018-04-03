@@ -16,7 +16,7 @@ from bandoneon import button, bellows
 BELLOWS_FILE = bellows._VIRTUAL_BELLOWS_FILE
 BUTTON_FILE = button._VIRTUAL_BUTTONS_FILE
 CUMPARSITA = 'cumparsita.mid'
-BANDONEON_CHANNELS = set([3, 5, 6])  # the only bandoneon channels in the file
+BANDONEON_CHANNELS = set([3]) # , 5, 6])  # the only bandoneon channels in the file
 
 # Build up a midi map buttons
 MIDI_TO_KEY_DRAW = {
@@ -178,7 +178,7 @@ def main():
             direction = infer_direction(currently_playing_notes, direction)
             write_notes(currently_playing_notes, direction)
             write_bellows(current_velocities, direction)
-            time.sleep(message.time)
+            time.sleep(message.time * 10)
             if message.type == 'note_on':
                 current_velocities = [message.velocity, ]
                 currently_playing_notes.add(message.note)

@@ -23,7 +23,7 @@ _KEY_MODE = os.getenv('BANDONEON_BUTTONS', _VIRTUAL)
 
 _VIRTUAL_BUTTONS_FILE = '.buttons'
 
-_SOUND_DIR = os.getenv('SOUND_DIRECTORY', 'sounds/part1')
+_SOUND_DIR = os.getenv('SOUND_DIRECTORY', 'sounds/transposed')
 
 _buttons = {}
 
@@ -32,7 +32,7 @@ _buttons = {}
 _file_list = os.listdir(_SOUND_DIR)
 _file_map = {
     note: [f for f in _file_list if note in f]
-    for note in [f'{n}{o}' for n in _note_map.keys() for o in range(6)]
+    for note in [f'{n}{o}' for n in _note_map.keys() for o in range(7)]
 }
 
 
@@ -124,7 +124,7 @@ def get_current_buttons_pushed():
         button_keys = [int(k.strip()) for k in button_keys if k != '']
     except ValueError as e:
         import pdb; pdb.set_trace()
-    pushed_buttons = [_buttons[k] for k in button_keys]
+    pushed_buttons = [_buttons[k] for k in button_keys if k in _buttons.keys()]
     return set(pushed_buttons)
 
 
