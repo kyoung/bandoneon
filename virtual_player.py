@@ -1,6 +1,6 @@
 '''
-The virtual player can be run to "play" the `.bellows` and `.buttons` files
-by populating them with keyed notes and pressure values.
+The virtual player can be run to "play" the POSIX message queue feeding
+the bandoneon main loop.
 
 Use alongside the main bandoneon program in virtual mode.
 '''
@@ -9,12 +9,12 @@ import logging
 import time
 
 import mido
+from posix_ipc import MessageQueue, O_CREAT
 
-from bandoneon import button, bellows
+from bandoneon import button, MESSAGE_Q_PATH
+from bandoneon.message import ButtonMessage, BellowsMessage
 
 
-BELLOWS_FILE = bellows._VIRTUAL_BELLOWS_FILE
-BUTTON_FILE = button._VIRTUAL_BUTTONS_FILE
 CUMPARSITA = 'cumparsita.mid'
 BANDONEON_CHANNELS = set([3, 5, 6])  # the only bandoneon channels in the file
 
@@ -27,6 +27,10 @@ MIDI_TO_KEY_PUSH = {
     button.push_note.midi: button.key_number
     for button in button._buttons.values()
 }
+
+
+messageQueue = MessageQueue(MESSAGE_Q_PATH, flags=O_CREAT, max_messages=1,
+                            read=False, write=True)
 
 
 class DirectionEnum():
@@ -86,14 +90,8 @@ def write_notes(notes, direction):
     if bad_notes:
         logging.warning(f'Invalid notes: {bad_notes}')
 
-    if keys:
-        key_string = ','.join((str(k) for k in keys))
-    else:
-        key_string  = ''
-
-    with open(BUTTON_FILE, 'w') as f:
-        f.seek(0)
-        f.write(key_string)
+    msg = ButtonMessage(active_buttons=keys)
+    messageQueue.send(msg.str())
 
 
 def write_bellows(velocities, direction=DirectionEnum.DRAW):
@@ -113,8 +111,8 @@ def write_bellows(velocities, direction=DirectionEnum.DRAW):
         avg_velocity = 0
     if direction == DirectionEnum.DRAW:
         avg_velocity *= -1
-    with open(BELLOWS_FILE, 'w') as f:
-        f.write(str(avg_velocity))
+    msg = BellowsMessage(pressure=avg_velocity)
+    messageQueue.send(msg.str())
 
 
 def check_song():
@@ -175,10 +173,10 @@ def main():
                     logging.info(f'note wasn\'t playing: {message.note}')
 
         else:
+            time.sleep(message.time)
             direction = infer_direction(currently_playing_notes, direction)
             write_notes(currently_playing_notes, direction)
             write_bellows(current_velocities, direction)
-            time.sleep(message.time * 10)
             if message.type == 'note_on':
                 current_velocities = [message.velocity, ]
                 currently_playing_notes.add(message.note)
