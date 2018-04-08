@@ -173,10 +173,12 @@ def main():
                     logging.info(f'note wasn\'t playing: {message.note}')
 
         else:
-            time.sleep(message.time)
+            # write out the saved up notes and info
             direction = infer_direction(currently_playing_notes, direction)
             write_notes(currently_playing_notes, direction)
             write_bellows(current_velocities, direction)
+            time.sleep(message.time)
+
             if message.type == 'note_on':
                 current_velocities = [message.velocity, ]
                 currently_playing_notes.add(message.note)
