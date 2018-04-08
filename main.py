@@ -1,6 +1,8 @@
 '''
 Bandoneon main application.
 '''
+import time
+
 from bandoneon import bellows, button
 from bandoneon.sound import Sound  # Stub as Sound
 
@@ -54,6 +56,7 @@ def start_loop():
                 sound.set_volume(current_volume)
         bellows_value = current_bellows_value
         bellows_mode = current_bellows_mode
+        time.sleep(0.001)
 
 
 if __name__ == '__main__':
