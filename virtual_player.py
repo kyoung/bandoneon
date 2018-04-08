@@ -37,6 +37,13 @@ class DirectionEnum():
     DRAW = 'draw'
     PUSH = 'push'
 
+    def other(direction):
+        if direction == DirectionEnum.DRAW:
+            return DirectionEnum.PUSH
+        elif direction == DirectionEnum.PUSH:
+            return DirectionEnum.DRAW
+        return None
+
 
 class InvalidNoteCombination(Exception):
     pass
@@ -140,8 +147,24 @@ def check_song():
         print(f"{ch}: min {ranges['min_midi']}, max {ranges['max_midi']}")
 
 
-def main():
+def play_scale():
     '''
+    Play the C-Major scale
+    '''
+    notes = [60, 62, 64, 65, 67, 69, 71, 72]
+    direction = DirectionEnum.DRAW
+    for note in notes:
+        write_notes([note,], direction)
+        write_bellows([100,], direction)
+        direction = DirectionEnum.other(direction)
+        time.sleep(1)
+    write_notes([], direction)
+    write_bellows([], direction)
+
+
+def play_cumparsita():
+    '''
+    Play the tango anthem
     '''
     currently_playing_notes = set()
     current_velocities = [0]
@@ -193,5 +216,6 @@ def main():
 
 
 if __name__ == '__main__':
+    play_scale()
     # check_song()
-    main()
+    # play_cumparsita()
