@@ -1,8 +1,10 @@
 '''
 Bandoneon main application.
 '''
+import time
+
 from bandoneon import bellows, button
-from bandoneon.sound import SoundStub as Sound
+from bandoneon.sound import Sound  # Stub as Sound
 
 
 def start_loop():
@@ -30,7 +32,10 @@ def start_loop():
             active_buttons[bttn].stop()
             del active_buttons[bttn]
         for bttn in buttons_to_start:
-            sound = Sound(bttn.get_file(current_bellows_value))
+            try:
+                sound = Sound(bttn.get_file(current_bellows_value))
+            except IndexError:
+                continue
             active_buttons[bttn] = sound
             sound.set_volume(current_volume)
             sound.play(loops=-1)  # ignore the returned channel
@@ -38,7 +43,10 @@ def start_loop():
             new_active_buttons = {}
             for bttn, sound in active_buttons.items():
                 sound.stop()
-                new_sound = Sound(bttn.get_file(current_bellows_value))
+                try:
+                    new_sound = Sound(bttn.get_file(current_bellows_value))
+                except IndexError:
+                    continue
                 new_sound.set_volume(current_volume)
                 new_sound.play(loops=-1)  # ignore the returned channel
                 new_active_buttons[bttn] = new_sound
@@ -48,6 +56,7 @@ def start_loop():
                 sound.set_volume(current_volume)
         bellows_value = current_bellows_value
         bellows_mode = current_bellows_mode
+        time.sleep(0.001)
 
 
 if __name__ == '__main__':

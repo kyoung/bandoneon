@@ -2,7 +2,9 @@
 Button related implementations.
 '''
 import os
+import random
 import re
+
 
 _RE_HELMHOLTZ = re.compile('^([a-gA-G]#?)(`*)$')
 _note_map = {
@@ -21,7 +23,17 @@ _KEY_MODE = os.getenv('BANDONEON_BUTTONS', _VIRTUAL)
 
 _VIRTUAL_BUTTONS_FILE = '.buttons'
 
+_SOUND_DIR = os.getenv('SOUND_DIRECTORY', 'sounds/transposed')
+
 _buttons = {}
+
+
+# Prescan the sound dir to make a map of ISO note values to sound files
+_file_list = os.listdir(_SOUND_DIR)
+_file_map = {
+    note: [f for f in _file_list if note in f]
+    for note in [f'{n}{o}' for n in _note_map.keys() for o in range(7)]
+}
 
 
 class InvalidNoteError(Exception):
@@ -52,7 +64,8 @@ class Note():
         self.midi = 24 + _note_map[note.upper()] + 12 * octave
 
     def fname(self):
-        return f'{self.midi}.wav'
+        file_ = random.choice(_file_map[self.octave_value])
+        return os.path.join(_SOUND_DIR, file_)
 
     def __repr__(self):
         return f'[{self.midi}] {self.octave_value}'
@@ -80,8 +93,8 @@ class Button():
 
     def get_file(self, bellows_value):
         if bellows_value >= 0:
-            return f'/path/to/sound/file/{self.push_note.fname()}'
-        return f'/path/to/sound/file/{self.draw_note.fname()}'
+            return self.push_note.fname()
+        return self.draw_note.fname()
 
     def __repr__(self):
         return (
@@ -111,7 +124,7 @@ def get_current_buttons_pushed():
         button_keys = [int(k.strip()) for k in button_keys if k != '']
     except ValueError as e:
         import pdb; pdb.set_trace()
-    pushed_buttons = [_buttons[k] for k in button_keys]
+    pushed_buttons = [_buttons[k] for k in button_keys if k in _buttons.keys()]
     return set(pushed_buttons)
 
 

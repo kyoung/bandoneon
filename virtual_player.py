@@ -178,7 +178,7 @@ def main():
             direction = infer_direction(currently_playing_notes, direction)
             write_notes(currently_playing_notes, direction)
             write_bellows(current_velocities, direction)
-            time.sleep(message.time)
+            time.sleep(message.time * 10)
             if message.type == 'note_on':
                 current_velocities = [message.velocity, ]
                 currently_playing_notes.add(message.note)
