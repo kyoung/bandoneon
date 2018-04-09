@@ -2,6 +2,7 @@
 Sound wraps pygame and a few other conveniences.
 '''
 from abc import ABC, abstractmethod
+import logging
 
 import pygame
 
@@ -35,6 +36,7 @@ class Sound(SoundABC):
         self._channel = None
 
     def play(self, loops=-1):
+        logging.debug(f'Playing {self.file_path}')
         self._channel = self._sound.play(loops)
         return self._channel
 

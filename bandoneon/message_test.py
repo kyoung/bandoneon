@@ -15,11 +15,18 @@ class TestBellowsMessage(unittest.TestCase):
         m = message.BellowsMessage().parse(r)
         self.assertEqual(m.pressure, 101)
 
+    def test_negative_bellows_values(self):
+        r = 'blw:-100'
+        m = message.BellowsMessage().parse(r)
+        self.assertEqual(m.pressure, -100)
+        s = m.str()
+        self.assertEqual(s, r)
+
 
 class TestButtonMessage(unittest.TestCase):
 
     def test_string_formating(self):
-        m = message.ButtonMessage(active_buttons=[1,2,3])
+        m = message.ButtonMessage(active_buttons=[1, 2, 3])
         s = m.str()
         self.assertEqual(s, 'btn:1,2,3')
 
@@ -27,7 +34,6 @@ class TestButtonMessage(unittest.TestCase):
         r = 'btn:6,5,4'
         m = message.ButtonMessage().parse(r)
         self.assertEqual(m.active_buttons, [6, 5, 4])
-
 
 
 class TestParseMessage(unittest.TestCase):

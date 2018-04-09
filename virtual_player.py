@@ -6,6 +6,7 @@ Use alongside the main bandoneon program in virtual mode.
 '''
 from collections import defaultdict
 import logging
+import sys
 import time
 
 import mido
@@ -16,7 +17,7 @@ from bandoneon.message import ButtonMessage, BellowsMessage
 
 
 CUMPARSITA = 'cumparsita.mid'
-BANDONEON_CHANNELS = set([3, 5, 6])  # the only bandoneon channels in the file
+BANDONEON_CHANNELS = set([3,])  # 5, 6])  # the only bandoneon channels in the file
 
 # Build up a midi map buttons
 MIDI_TO_KEY_DRAW = {
@@ -91,6 +92,7 @@ def write_notes(notes, direction):
 
     # sometimes we get impossible notes?
     keys = [map_[n] for n in notes if n in map_]
+    logging.debug(f'Playing keys: {keys} for notes: {notes} ({direction})')
 
     # report on bad notes:
     bad_notes = [n for n in notes if n not in map_]
@@ -154,10 +156,36 @@ def play_scale():
     notes = [60, 62, 64, 65, 67, 69, 71, 72]
     direction = DirectionEnum.DRAW
     for note in notes:
-        write_notes([note,], direction)
         write_bellows([100,], direction)
+        write_notes([note,], direction)
         direction = DirectionEnum.other(direction)
         time.sleep(1)
+    write_notes([], direction)
+    write_bellows([], direction)
+
+
+def play_cumparsita_open():
+    '''
+    Play the opening of the cumparsita...
+    '''
+    notes = [
+        ([42, 57, 62], 0.5),
+        ([72, ], 0.5),
+        ([38, 54, 60, 69], 0.5),
+        ([66, ], 0.5),
+        ([38, 54, 60, ], 0.25),
+        ([38, 54, 60, 74], 0.25),
+        ([75, ], 0.25),
+        ([74, ], 0.25),
+        ([38, 54, 60, 73], 0.5),
+        ([74, ], 0.5)
+    ]
+    direction = DirectionEnum.DRAW
+    for chord, t in notes:
+        write_bellows([100,], direction)
+        write_notes(chord, direction)
+        direction = DirectionEnum.other(direction)
+        time.sleep(t)
     write_notes([], direction)
     write_bellows([], direction)
 
@@ -216,6 +244,14 @@ def play_cumparsita():
 
 
 if __name__ == '__main__':
-    play_scale()
-    # check_song()
-    # play_cumparsita()
+    if 'debug' in sys.argv:
+        logging.basicConfig(level=logging.DEBUG)
+
+    if 'scale' in sys.argv:
+        play_scale()
+    elif 'check' in sys.argv:
+        check_song()
+    elif 'open' in sys.argv:
+        play_cumparsita_open()
+    else:
+        play_cumparsita()

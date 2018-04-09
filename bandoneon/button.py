@@ -1,6 +1,7 @@
 '''
 Button related implementations.
 '''
+import logging
 import os
 import random
 import re
@@ -93,9 +94,12 @@ class Button():
         self.push_note = Note(push_value)
 
     def get_file(self, bellows_value):
-        if bellows_value >= 0:
-            return self.push_note.fname()
-        return self.draw_note.fname()
+        note = self.push_note if bellows_value >= 0 else self.draw_note
+        logging.debug((
+            f'button {self.key_number} on '
+            f'{bellows_value}: {note.octave_value}'
+        ))
+        return note.fname()
 
     def __repr__(self):
         return (

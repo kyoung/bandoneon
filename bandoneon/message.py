@@ -13,7 +13,7 @@ class InvalidMessage(Exception):
 
 class BellowsMessage():
 
-    _RE = re.compile('blw:([\d]*)')
+    _RE = re.compile('blw:([\-\d]*)')
 
     def __init__(self, pressure=0):
         self.pressure = pressure
