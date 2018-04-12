@@ -1,22 +1,23 @@
 '''
-The virtual player can be run to "play" the `.bellows` and `.buttons` files
-by populating them with keyed notes and pressure values.
+The virtual player can be run to "play" the POSIX message queue feeding
+the bandoneon main loop.
 
 Use alongside the main bandoneon program in virtual mode.
 '''
 from collections import defaultdict
 import logging
+import sys
 import time
 
 import mido
+from posix_ipc import MessageQueue, O_CREAT
 
-from bandoneon import button, bellows
+from bandoneon import button, MESSAGE_Q_PATH
+from bandoneon.message import ButtonMessage, BellowsMessage
 
 
-BELLOWS_FILE = bellows._VIRTUAL_BELLOWS_FILE
-BUTTON_FILE = button._VIRTUAL_BUTTONS_FILE
 CUMPARSITA = 'cumparsita.mid'
-BANDONEON_CHANNELS = set([3, 5, 6])  # the only bandoneon channels in the file
+BANDONEON_CHANNELS = set([3, 4, 7])  # the only bandoneon channels in the file
 
 # Build up a midi map buttons
 MIDI_TO_KEY_DRAW = {
@@ -29,9 +30,20 @@ MIDI_TO_KEY_PUSH = {
 }
 
 
+messageQueue = MessageQueue(MESSAGE_Q_PATH, flags=O_CREAT, max_messages=1,
+                            read=False, write=True)
+
+
 class DirectionEnum():
     DRAW = 'draw'
     PUSH = 'push'
+
+    def other(direction):
+        if direction == DirectionEnum.DRAW:
+            return DirectionEnum.PUSH
+        elif direction == DirectionEnum.PUSH:
+            return DirectionEnum.DRAW
+        return None
 
 
 class InvalidNoteCombination(Exception):
@@ -80,20 +92,15 @@ def write_notes(notes, direction):
 
     # sometimes we get impossible notes?
     keys = [map_[n] for n in notes if n in map_]
+    logging.debug(f'Playing keys: {keys} for notes: {notes} ({direction})')
 
     # report on bad notes:
     bad_notes = [n for n in notes if n not in map_]
     if bad_notes:
         logging.warning(f'Invalid notes: {bad_notes}')
 
-    if keys:
-        key_string = ','.join((str(k) for k in keys))
-    else:
-        key_string  = ''
-
-    with open(BUTTON_FILE, 'w') as f:
-        f.seek(0)
-        f.write(key_string)
+    msg = ButtonMessage(active_buttons=keys)
+    messageQueue.send(msg.str())
 
 
 def write_bellows(velocities, direction=DirectionEnum.DRAW):
@@ -113,8 +120,8 @@ def write_bellows(velocities, direction=DirectionEnum.DRAW):
         avg_velocity = 0
     if direction == DirectionEnum.DRAW:
         avg_velocity *= -1
-    with open(BELLOWS_FILE, 'w') as f:
-        f.write(str(avg_velocity))
+    msg = BellowsMessage(pressure=avg_velocity)
+    messageQueue.send(msg.str())
 
 
 def check_song():
@@ -142,13 +149,65 @@ def check_song():
         print(f"{ch}: min {ranges['min_midi']}, max {ranges['max_midi']}")
 
 
-def main():
+def play_scale():
     '''
+    Play the C-Major scale
+    '''
+    notes = [60, 62, 64, 65, 67, 69, 71, 72]
+    direction = DirectionEnum.DRAW
+    for note in notes:
+        write_bellows([100,], direction)
+        write_notes([note,], direction)
+        direction = DirectionEnum.other(direction)
+        time.sleep(1)
+        write_notes([], direction)
+        time.sleep(2)
+    write_notes([], direction)
+    write_bellows([], direction)
+
+
+def play_cumparsita_open():
+    '''
+    Play the opening of the cumparsita...
+    '''
+    notes = [
+        ([42, 57, 62], 0.25),
+        ([], 0.25),
+        ([72, ], 0.25),
+        ([], 0.25),
+        ([38, 54, 60, 69], 0.25),
+        ([], 0.25),
+        ([66, ], 0.5),
+        ([38, 54, 60, ], 0.25),
+        ([38, 54, 60, 74], 0.25),
+        ([75, ], 0.25),
+        ([74, ], 0.25),
+        ([38, 54, 60, 73], 0.5),
+        ([74, ], 0.5)
+    ]
+    direction = DirectionEnum.DRAW
+    for chord, t in notes:
+        write_bellows([100,], direction)
+        write_notes(chord, direction)
+        direction = DirectionEnum.other(direction)
+        time.sleep(t)
+    write_notes([], direction)
+    write_bellows([], direction)
+
+
+def play_cumparsita():
+    '''
+    Play the tango anthem
     '''
     currently_playing_notes = set()
-    current_velocities = [0]
+    current_velocitie = 0
     direction = DirectionEnum.DRAW
     for message in mido.MidiFile(CUMPARSITA):
+        # NB. The time attribute of each message is the number of seconds since
+        # the last message or the start of the file.
+        if message.time:
+            time.sleep(message.time)
+
         # We're not really interested in anything else just yet
         if message.type not in ['note_on', 'note_off']:
             continue
@@ -161,37 +220,32 @@ def main():
             f'-- {message.time}'
         ))
 
-        # NB. The time attribute of each message is the number of seconds since
-        # the last message or the start of the file.
+        if message.type == 'note_on':
+            currently_playing_notes.add(message.note)
+            current_velocities = [message.velocity, ]
+        if message.type == 'note_off':
+            try:
+                currently_playing_notes.remove(message.note)
+            except KeyError:
+                logging.info(f'note wasn\'t playing: {message.note}')
 
-        if message.time == 0:
-            if message.type == 'note_on':
-                currently_playing_notes.add(message.note)
-                current_velocities.append(message.velocity)
-            if message.type == 'note_off':
-                try:
-                    currently_playing_notes.remove(message.note)
-                except KeyError:
-                    logging.info(f'note wasn\'t playing: {message.note}')
-
-        else:
-            direction = infer_direction(currently_playing_notes, direction)
-            write_notes(currently_playing_notes, direction)
-            write_bellows(current_velocities, direction)
-            time.sleep(message.time * 10)
-            if message.type == 'note_on':
-                current_velocities = [message.velocity, ]
-                currently_playing_notes.add(message.note)
-            if message.type == 'note_off':
-                try:
-                    currently_playing_notes.remove(message.note)
-                except KeyError:
-                    logging.info(f'note wasn\'t playing: {message.note}')
+        direction = infer_direction(currently_playing_notes, direction)
+        write_notes(currently_playing_notes, direction)
+        write_bellows(current_velocities, direction)
 
     write_notes(currently_playing_notes, direction)
     write_bellows([])
 
 
 if __name__ == '__main__':
-    # check_song()
-    main()
+    if 'debug' in sys.argv:
+        logging.basicConfig(level=logging.DEBUG)
+
+    if 'scale' in sys.argv:
+        play_scale()
+    elif 'check' in sys.argv:
+        check_song()
+    elif 'open' in sys.argv:
+        play_cumparsita_open()
+    else:
+        play_cumparsita()

@@ -1,9 +1,12 @@
 '''
 Button related implementations.
 '''
+import logging
 import os
 import random
 import re
+
+from posix_ipc import MessageQueue, O_CREAT
 
 
 _RE_HELMHOLTZ = re.compile('^([a-gA-G]#?)(`*)$')
@@ -21,11 +24,10 @@ _VIRTUAL = 'virtual'
 _IC2 = 'ic2'
 _KEY_MODE = os.getenv('BANDONEON_BUTTONS', _VIRTUAL)
 
-_VIRTUAL_BUTTONS_FILE = '.buttons'
-
 _SOUND_DIR = os.getenv('SOUND_DIRECTORY', 'sounds/transposed')
 
 _buttons = {}
+_socket = None
 
 
 # Prescan the sound dir to make a map of ISO note values to sound files
@@ -92,9 +94,12 @@ class Button():
         self.push_note = Note(push_value)
 
     def get_file(self, bellows_value):
-        if bellows_value >= 0:
-            return self.push_note.fname()
-        return self.draw_note.fname()
+        note = self.push_note if bellows_value >= 0 else self.draw_note
+        logging.debug((
+            f'button {self.key_number} on '
+            f'{bellows_value}: {note.octave_value}'
+        ))
+        return note.fname()
 
     def __repr__(self):
         return (
@@ -105,27 +110,16 @@ class Button():
         return self.__repr__()
 
 
-def get_current_buttons_pushed():
+def get_current_buttons_pushed(button_message):
     '''
-    Measures "depressed buttons" and returns the set of selected Buttons.
-
-    In `_VIRTUAL` mode, we get these values by reading in from a loacal file:
-    `.buttons`, where we expect to find a comma delimited list a pressed keys
-    with values from 0 - 70.
+    Given a <message.ButtonMessage>, return the <set> of currently pushed
+    <Button>s.
     '''
-    try:
-        with open(_VIRTUAL_BUTTONS_FILE, 'r') as f:
-            raw_value = f.read()
-    except FileNotFoundError as e:
-        raw_value = ''
-    raw_value = raw_value.replace('\x00', '')
-    button_keys = raw_value.strip().split(',')
-    try:
-        button_keys = [int(k.strip()) for k in button_keys if k != '']
-    except ValueError as e:
-        import pdb; pdb.set_trace()
-    pushed_buttons = [_buttons[k] for k in button_keys if k in _buttons.keys()]
-    return set(pushed_buttons)
+    return set([
+        _buttons[k]
+        for k in button_message.active_buttons
+        if k in _buttons.keys()
+    ])
 
 
 def button_deltas(active_buttons, pressed_buttons):
