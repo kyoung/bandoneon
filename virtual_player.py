@@ -17,7 +17,7 @@ from bandoneon.message import ButtonMessage, BellowsMessage
 
 
 CUMPARSITA = 'cumparsita.mid'
-BANDONEON_CHANNELS = set([3,])  # 5, 6])  # the only bandoneon channels in the file
+BANDONEON_CHANNELS = set([3, 4, 7])  # the only bandoneon channels in the file
 
 # Build up a midi map buttons
 MIDI_TO_KEY_DRAW = {
@@ -160,6 +160,8 @@ def play_scale():
         write_notes([note,], direction)
         direction = DirectionEnum.other(direction)
         time.sleep(1)
+        write_notes([], direction)
+        time.sleep(2)
     write_notes([], direction)
     write_bellows([], direction)
 
@@ -169,9 +171,12 @@ def play_cumparsita_open():
     Play the opening of the cumparsita...
     '''
     notes = [
-        ([42, 57, 62], 0.5),
-        ([72, ], 0.5),
-        ([38, 54, 60, 69], 0.5),
+        ([42, 57, 62], 0.25),
+        ([], 0.25),
+        ([72, ], 0.25),
+        ([], 0.25),
+        ([38, 54, 60, 69], 0.25),
+        ([], 0.25),
         ([66, ], 0.5),
         ([38, 54, 60, ], 0.25),
         ([38, 54, 60, 74], 0.25),
@@ -195,9 +200,14 @@ def play_cumparsita():
     Play the tango anthem
     '''
     currently_playing_notes = set()
-    current_velocities = [0]
+    current_velocitie = 0
     direction = DirectionEnum.DRAW
     for message in mido.MidiFile(CUMPARSITA):
+        # NB. The time attribute of each message is the number of seconds since
+        # the last message or the start of the file.
+        if message.time:
+            time.sleep(message.time)
+
         # We're not really interested in anything else just yet
         if message.type not in ['note_on', 'note_off']:
             continue
@@ -210,34 +220,18 @@ def play_cumparsita():
             f'-- {message.time}'
         ))
 
-        # NB. The time attribute of each message is the number of seconds since
-        # the last message or the start of the file.
+        if message.type == 'note_on':
+            currently_playing_notes.add(message.note)
+            current_velocities = [message.velocity, ]
+        if message.type == 'note_off':
+            try:
+                currently_playing_notes.remove(message.note)
+            except KeyError:
+                logging.info(f'note wasn\'t playing: {message.note}')
 
-        if message.time == 0:
-            if message.type == 'note_on':
-                currently_playing_notes.add(message.note)
-                current_velocities.append(message.velocity)
-            if message.type == 'note_off':
-                try:
-                    currently_playing_notes.remove(message.note)
-                except KeyError:
-                    logging.info(f'note wasn\'t playing: {message.note}')
-
-        else:
-            # write out the saved up notes and info
-            direction = infer_direction(currently_playing_notes, direction)
-            write_notes(currently_playing_notes, direction)
-            write_bellows(current_velocities, direction)
-            time.sleep(message.time)
-
-            if message.type == 'note_on':
-                current_velocities = [message.velocity, ]
-                currently_playing_notes.add(message.note)
-            if message.type == 'note_off':
-                try:
-                    currently_playing_notes.remove(message.note)
-                except KeyError:
-                    logging.info(f'note wasn\'t playing: {message.note}')
+        direction = infer_direction(currently_playing_notes, direction)
+        write_notes(currently_playing_notes, direction)
+        write_bellows(current_velocities, direction)
 
     write_notes(currently_playing_notes, direction)
     write_bellows([])

@@ -35,6 +35,14 @@ class TestButtonMessage(unittest.TestCase):
         m = message.ButtonMessage().parse(r)
         self.assertEqual(m.active_buttons, [6, 5, 4])
 
+    def test_no_buttons(self):
+        r = 'btn:'
+        m = message.ButtonMessage().parse(r)
+        self.assertTrue(m)
+        m2 = message.ButtonMessage([])
+        s = m2.str()
+        self.assertEqual(s, r)
+
 
 class TestParseMessage(unittest.TestCase):
 

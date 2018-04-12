@@ -1,6 +1,7 @@
 '''
 Bandoneon main application.
 '''
+import logging
 from posix_ipc import MessageQueue, O_CREAT
 
 from . import bellows, button
@@ -34,6 +35,7 @@ def start_loop():
         bttn_msg, bellow_msg = parse_message(msg)
 
         if bttn_msg:
+            logging.debug(f'Button Msg: {bttn_msg.str()}')
             current_bttns = button.get_current_buttons_pushed(bttn_msg)
             buttons_to_start, buttons_to_kill = button.button_deltas(
                 set(active_buttons.keys()),
@@ -51,6 +53,7 @@ def start_loop():
                 sound.play(loops=-1)  # ignore the returned channel
 
         if bellow_msg:
+            logging.debug(f'Bellow Msg: {bellow_msg.str()}')
             current_bellows_value = bellow_msg.pressure
             current_bellows_mode = bellows.pressure_to_mode(current_bellows_value)
             current_volume = bellows.pressure_to_volume(current_bellows_value)

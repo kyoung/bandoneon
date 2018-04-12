@@ -52,8 +52,9 @@ class ButtonMessage():
         if not m:
             raise InvalidMessage(f'{raw} failed to match ButtonMessage format')
         if not m.group(1):
-            return None
-        self.active_buttons = [int(i) for i in m.group(1).split(',')]
+            self.active_buttons = []
+        else:
+            self.active_buttons = [int(i) for i in m.group(1).split(',')]
         return self
 
     def __eq__(self, other):
