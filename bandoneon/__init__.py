@@ -6,7 +6,7 @@ from posix_ipc import MessageQueue, O_CREAT
 
 from . import bellows, button
 from .message import parse_message
-from .sound import Sound
+from .sound import Sound, get_sound
 
 
 MESSAGE_Q_PATH = '/bandoneon'
@@ -45,7 +45,7 @@ def start_loop():
                 del active_buttons[bttn]
             for bttn in buttons_to_start:
                 try:
-                    sound = Sound(bttn.get_file(bellows_value))
+                    sound = get_sound(bttn.get_file(bellows_value), Sound)
                 except IndexError:
                     continue
                 active_buttons[bttn] = sound
@@ -55,14 +55,18 @@ def start_loop():
         if bellow_msg:
             logging.debug(f'Bellow Msg: {bellow_msg.str()}')
             current_bellows_value = bellow_msg.pressure
-            current_bellows_mode = bellows.pressure_to_mode(current_bellows_value)
+            current_bellows_mode = bellows.pressure_to_mode(
+                current_bellows_value)
             current_volume = bellows.pressure_to_volume(current_bellows_value)
             if current_bellows_mode != bellows_mode:
                 new_active_buttons = {}
                 for bttn, sound in active_buttons.items():
                     sound.stop()
                     try:
-                        new_sound = Sound(bttn.get_file(current_bellows_value))
+                        new_sound = get_sound(
+                            bttn.get_file(current_bellows_value),
+                            Sound
+                        )
                     except IndexError:
                         continue
                     new_sound.set_volume(current_volume)

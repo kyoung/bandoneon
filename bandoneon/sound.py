@@ -29,6 +29,10 @@ class SoundABC(ABC):
 
 class Sound(SoundABC):
 
+    # Class-level sound cache to keep memory in-check
+    # file_path: <Sound> instance
+    _cache_ = {}
+
     def __init__(self, file_path):
         self.file_path = file_path
         self._sound = None
@@ -60,3 +64,14 @@ class SoundStub(SoundABC):
 
     def set_volume(self, volume):
         return
+
+
+_cached_sounds = {}
+
+
+def get_sound(file_path, sound_class):
+    if file_path in _cached_sounds:
+        return _cached_sounds[file_path]
+    s = sound_class(file_path)
+    _cached_sounds[file_path] = s
+    return s
