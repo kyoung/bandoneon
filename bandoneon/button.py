@@ -31,9 +31,10 @@ _socket = None
 
 
 # Prescan the sound dir to make a map of ISO note values to sound files
+# only take Pre1 sounds
 _file_list = os.listdir(_SOUND_DIR)
 _file_map = {
-    note: [f for f in _file_list if note in f]
+    note: [f for f in _file_list if note in f and 'Pre2' in f]
     for note in [f'{n}{o}' for n in _note_map.keys() for o in range(7)]
 }
 
