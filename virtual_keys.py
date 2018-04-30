@@ -45,7 +45,7 @@ def play_key(keyboard_key):
     if keyboard_key not in KEYBOARD_MAP:
         return
     midi_note = KEYBOARD_MAP[keyboard_key]
-    bandoneon_key = MIDI_TO_KEY_DRAW[midi_note]
+    bandoneon_key = MIDI_TO_KEY_PUSH[midi_note]
     msg = ButtonMessage(active_buttons=[bandoneon_key])
     messageQueue.send(msg.str())
 
